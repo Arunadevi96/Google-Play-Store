@@ -1,0 +1,198 @@
+workflow_id: playstore_monitor_2025
+name: Play Store MCP Agent Workflow
+version: "1.0"
+description: Simplified and flattened machine-executable workflow for autonomous Play Store app health monitoring.
+last_updated: "2025-01-15T02:00:00Z"
+frequency: daily
+run_time: "02:00 UTC"
+timezone: UTC
+email_recipients:
+  - team@example.com
+slack_channel: "#playstore-monitoring"
+send_email_report: true
+send_slack: true
+app_id: "${APP_ID}"
+crash_rate_threshold: 2.0
+anr_rate_threshold: 0.5
+negative_review_threshold: 3
+steps:
+  - step_id: "1"
+    name: Get Current Release Status
+    tool: get_releases
+    package_name: "${APP_ID}"
+    output_var: current_releases
+    next_step: "2"
+
+  - step_id: "2"
+    name: Get App Details
+    tool: get_app_details
+    package_name: "${APP_ID}"
+    output_var: app_details
+    next_step: "3"
+
+  - step_id: "3"
+    name: Fetch Recent Reviews
+    tool: get_reviews
+    package_name: "${APP_ID}"
+    max_results: 50
+    output_var: recent_reviews
+    next_step: "4"
+
+  - step_id: "4"
+    name: Get App Vitals Overview
+    tool: get_vitals_overview
+    package_name: "${APP_ID}"
+    output_var: vitals_overview
+    next_step: "5"
+
+  - step_id: "5"
+    name: Get Detailed Vitals Metrics
+    tool: get_vitals_metrics
+    package_name: "${APP_ID}"
+    output_var: vitals_metrics
+    next_step: "6"
+
+  - step_id: "6"
+    name: Detect Critical Issues
+    action: evaluate_conditions
+    conditions:
+      - vitals_overview.crash_rate > crash_rate_threshold
+      - vitals_overview.anr_rate > anr_rate_threshold
+      - count(recent_reviews.rating <= 2) >= negative_review_threshold
+    if_true: "7"
+    if_false: "13"
+
+  - step_id: "7"
+    name: Identify Issue Type
+    action: classify_issue
+    input:
+      - vitals_overview
+      - recent_reviews
+    output_var: issue_type
+    next_step: "8"
+
+  - step_id: "8"
+    name: Get Affected Versions
+    action: extract_versions
+    input:
+      - vitals_metrics
+      - recent_reviews
+    output_var: affected_versions
+    next_step: "9"
+
+  - step_id: "9"
+    name: Halt Rollout
+    tool: halt_release
+    condition: current_releases.rollout_percentage < 100
+    package_name: "${APP_ID}"
+    track: "${rollout_track}"
+    version_code: "${affected_version_code}"
+    next_step: "10"
+
+  - step_id: "10"
+    name: Promote Stable Release
+    tool: promote_release
+    condition: is_rollback_required == true
+    package_name: "${APP_ID}"
+    from_track: "${previous_stable_track}"
+    to_track: production
+    version_code: "${stable_version_code}"
+    next_step: "11"
+
+  - step_id: "11"
+    name: Reply to Negative Reviews
+    tool: reply_to_review
+    package_name: "${APP_ID}"
+    review_id: "${review_id}"
+    reply_text: We've identified an issue in this version and are working on a fix.
+    next_step: "12"
+
+  - step_id: "12"
+    name: Alert Team - Critical Issue
+    action: send_alert
+    urgency: High
+    channel: Slack and Email
+    next_step: "21"
+
+  - step_id: "13"
+    name: Check Subscription Health
+    tool: list_subscriptions
+    package_name: "${APP_ID}"
+    output_var: subscription_stats
+    next_step: "14"
+
+  - step_id: "14"
+    name: Get Subscription Purchase Status
+    tool: get_subscription_status
+    package_name: "${APP_ID}"
+    subscription_id: "${subscription_id}"
+    purchase_token: "${purchase_token}"
+    next_step: "15"
+
+  - step_id: "15"
+    name: Check Refund Patterns
+    tool: list_voided_purchases
+    package_name: "${APP_ID}"
+    next_step: "16"
+
+  - step_id: "16"
+    name: Review In-App Products
+    tool: list_in_app_products
+    package_name: "${APP_ID}"
+    next_step: "17"
+
+  - step_id: "17"
+    name: Analyze Review Sentiment Trends
+    action: analyze_sentiment
+    input: recent_reviews
+    output_var: review_sentiment
+    next_step: "18"
+
+  - step_id: "18"
+    name: Increase Rollout Percentage
+    tool: update_rollout
+    condition: vitals_overview.crash_rate < 0.5 AND recent_reviews.negative_count < 2
+    package_name: "${APP_ID}"
+    track: "${rollout_track}"
+    version_code: "${rollout_version_code}"
+    rollout_percentage: "${new_rollout_percentage}"
+    next_step: "19"
+
+  - step_id: "19"
+    name: Reply to Positive Reviews
+    tool: reply_to_review
+    condition: recent_reviews.positive_count > 10
+    package_name: "${APP_ID}"
+    review_id: "${positive_review_id}"
+    reply_text: Thank you for your review! We're glad you like the app.
+    next_step: "20"
+
+  - step_id: "20"
+    name: Check Listing Update
+    action: check_update_age
+    condition: app_details.last_updated_days > 30
+    next_step: "21"
+
+  - step_id: "21"
+    name: Generate Daily Report
+    action: compile_report
+    output_var: daily_report
+    next_step: "22"
+
+  - step_id: "22"
+    name: Send Report Notification
+    action: send_notification
+    channel: Slack and Email
+    urgency: Normal
+    next_step: "23"
+
+  - step_id: "23"
+    name: Log Results
+    action: save_history
+    log_fields:
+      - workflow_id
+      - last_run
+      - last_status
+      - steps_completed
+      - errors
+      - next_scheduled_run

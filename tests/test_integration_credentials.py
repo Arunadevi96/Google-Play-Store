@@ -36,7 +36,7 @@ def test_credentials_endpoint():
     # Start the server in the background
     print(f"Starting MCP server on port {port}...")
     process = subprocess.Popen(  # noqa: S603
-        ["play-store-mcp", "--transport", "streamable-http", "--host", host, "--port", str(port)],
+        [sys.executable, "-m", "play_store_mcp", "--transport", "streamable-http", "--host", host, "--port", str(port)],
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
