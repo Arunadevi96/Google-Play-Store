@@ -363,3 +363,5 @@ MIT License — see [LICENSE](LICENSE) for details.
 ## 🤖 AI Usage Disclaimer
 
 Portions of this codebase were generated with the assistance of Large Language Models (LLMs). All AI-generated code has been reviewed and tested to ensure quality and correctness.
+#   G o o g l e - P l a y - S t o r e  
+ 
