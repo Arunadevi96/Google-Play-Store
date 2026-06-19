@@ -28,25 +28,18 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
-        with:
-          version: "latest"
-
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.13"
 
-      - name: Install Dependencies
+      - name: Install Google Antigravity SDK
         run: |
-          uv sync --extra dev
+          pip install google-antigravity
 
-      - name: Run Agent Workflow
+      - name: Run Antigravity Agent Workflow
         env:
-          APP_ID: ${{ github.event.inputs.app_id || 'com.spotify.music' }}
-          # Pass play store credentials if configured in repository secrets
           GOOGLE_PLAY_STORE_CREDENTIALS: ${{ secrets.GOOGLE_PLAY_STORE_CREDENTIALS }}
           GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
         run: |
-          uv run python run_agent_workflow.py
+          antigravity run playstore-monitoring --param app_id=${{ github.event.inputs.app_id || 'com.spotify.music' }}
